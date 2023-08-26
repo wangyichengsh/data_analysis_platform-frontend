@@ -1,0 +1,804 @@
+<template>
+  <div class="taskList">
+    <div class="content">
+      <router-link :to="{ name: 'addDemand' }" > <button style="float:right;">创建新需求</button></router-link>
+      <el-tabs v-model="tabActive" type="border-card" @tab-click="handletabchange" style="margin-top: 2%;" >
+
+        <el-tab-pane  label="开发任务" v-if="isStaff===true" name="deve" >
+          <div class="search" style="margin-left: 50%;" >
+            <el-input placeholder="请输入内容" prefix-icon="el-icon-search" v-model="searchText"></el-input>
+            <el-select id="deveStatus" v-model="deveStatus" >
+              <el-option  label="全部" value=""></el-option>
+              <el-option  label="待确认" value="confirming"></el-option>
+              <el-option  label="排队中" value="ranking"></el-option>
+              <el-option  label="开发中" value="developing"></el-option>
+              <el-option  label="已完成" value="finished"></el-option>
+              <el-option  label="BUG修复中" value="repairing"></el-option>
+            </el-select>
+            <button @click="searchTask" >搜索</button>
+          </div>
+          <table>
+            <tr>
+              <th style="width:330px;">创建时间</th>
+              <th style="width:330px;">更新时间</th>
+              <th style="width:330px;">标题</th>
+              <th style="width:100px;" >类型</th>
+              <th style="width:100px;" >状态</th>
+              <th style="width:100px;" >开发人</th>
+              <th style="width:100px;" >需求详情</th>
+              <th style="width:150px;" >版本详情</th>
+            </tr>
+            <tr v-for="task in TaskInDeve">
+              <td>{{new Date(task.create_time).toLocaleDateString()}}</td>
+              <td>{{new Date(task.update_time).toLocaleDateString()}}</td>
+              <td>{{task.title}}</td>
+              <td>{{typeMap[task.type]}}</td>
+              <td>{{stateMap[task.status]}}</td>
+              <td>{{usermap[task.developer]}}</td>
+              <td><router-link :to="{ name: 'demandDetail' ,query:{demandId:i}}" v-for="i in task.demand_id" ><button style="margin:5px;" >需求详情</button></router-link></td>
+              <td>
+                <router-link :to="{ name: 'taskDetail' ,query:{parentId:i.demand_id,versionId:i.version_id, task:task.id}}" v-for="i in task.version_id" ><button style="margin:5px;" >版本详情</button></router-link>
+              </td>
+            </tr>
+          </table>
+          <div class="pageTool">
+            <span>每页{{ Devesize }}条</span>
+            <span>共{{ totalDeveRecord }}条</span>
+            <button @click="prevPage">上一页</button>
+            <button @click="nextPage">下一页</button>
+            <input class="pageC" type="text" name="page" v-model="currentDevPage"><button @click="pageAny">跳转</button>
+          </div>
+        </el-tab-pane>
+
+
+        <el-tab-pane label="已完成" name="start">
+          <div class="search" >
+            <el-input placeholder="请输入内容" prefix-icon="el-icon-search" v-model="searchText"></el-input>
+            <button @click="searchTask" >搜索</button>
+          </div>
+          <table>
+            <tr>
+              <th style="width:100px;">需求编号</th>
+              <th style="width:330px;">标题</th>
+              <th style="width:100px;" >需求类型</th>
+              <th style="width:100px;" >需求详情</th>
+              <th style="width:300px;" >执行页面</th>
+              <th style="width:300px;" >版本详情</th>
+            </tr>
+            <tr v-for="task in parentTaskDoneList">
+              <td>{{task.seq}}</td>
+              <td><router-link :to="{ name: 'demandDetail' ,query:{demandId:task.id}}" >{{task.title}}</router-link></td>
+              <td>{{task.type}}</td>
+              <td><router-link :to="{ name: 'demandDetail' ,query:{demandId:task.id}}" ><button style="margin:5px;" >需求详情</button></router-link></td>
+              <td>
+                <router-link :to="{ name: 'taskExec',query:{taskId:i.task_id} }"  v-for="i in task.latest_task"><button style="margin:5px;" >{{i.name}}</button></router-link>
+              </td>
+              <td>
+                <router-link :to="{ name: 'taskDetail' ,query:{parentId:i.demand_id,versionId:i.version_id, task:i.task_id}}" v-for="i in task.diff_task" ><button style="margin:5px;" >{{i.name}}</button></router-link>
+              </td>
+            </tr>
+          </table>
+          <div class="pageTool">
+            <span>每页{{ Donesize }}条</span>
+            <span>共{{ totalDoneRecord }}条</span>
+            <button @click="prevPage">上一页</button>
+            <button @click="nextPage">下一页</button>
+            <input class="pageC" type="text" name="page" v-model="currentDonePage"><button @click="pageAny">跳转</button>
+          </div>
+        </el-tab-pane>
+
+        <el-tab-pane label="我的需求" v-if="isStaff!==true" name="my" >
+          <div class="search" >
+            <el-input placeholder="请输入内容" prefix-icon="el-icon-search" v-model="searchText"></el-input>
+            <button @click="MysearchTask" >搜索</button>
+          </div>
+          <table>
+            <tr>
+              <th style="width:100px;">ID</th>
+              <th style="width:180px;">创建时间</th>
+              <th style="width:80px;">需求编号</th>
+              <th style="width:330px;">标题</th>
+              <th style="width:100px;" >需求类型</th>
+              <th style="width:100px;" >优先级</th>
+              <th style="width:150px;" >状态</th>
+              <th style="width:100px;" >需求详情</th>
+              <th style="width:300px;" >执行页面</th>
+              <th style="width:300px;" >版本详情</th>
+            </tr>
+            <tr v-for="task in MyTaskList">
+              <td>{{task.id}}</td>
+              <td>{{formatDate(task.create_time)}}</td>
+              <td>{{task.seq}}</td>
+              <td>
+                <el-badge is-dot  v-if="task.if_feed" >  <router-link :to="{ name: 'demandDetail' ,query:{demandId:task.id}}"><div :class="{'hurry':task.priority===1}" > {{task.title}}</div></router-link></el-badge>
+                <el-badge is-dot  v-if="task.if_feed!==true && task.status==='accepting'" type="primary" >  <router-link :to="{ name: 'demandDetail' ,query:{demandId:task.id}}"><div :class="{'hurry':task.priority===1}" > {{task.title}}</div></router-link></el-badge>
+                <div v-if="task.if_feed!==true && task.status!=='accepting'" > <router-link :to="{ name: 'demandDetail' ,query:{demandId:task.id}}"><div :class="{'hurry':task.priority===1}" > {{task.title}}</div></router-link></div>
+              </td>
+              <td>{{task.type}}</td>
+              <td><div :class="{'hurry':task.priority===1}" > {{ mapPriority(task.priority) }}</div></td>
+              <td>{{mapStatus(task.status) }}</td>
+              <td><router-link :to="{ name: 'demandDetail' ,query:{demandId:task.id}}" ><button >需求详情</button></router-link></td>
+              <td>
+                <router-link :to="{ name: 'taskExec',query:{taskId:i.task_id} }"  v-for="i in task.latest_task" ><button style="margin:5px;" >{{i.name}}</button></router-link>
+              </td>
+              <td>
+                <router-link :to="{ name: 'taskDetail' ,query:{parentId:i.demand_id,versionId:i.version_id, task:i.task_id}}" v-for="i in task.diff_task" ><button style="margin:5px;" >{{i.name}}</button></router-link>
+              </td>
+            </tr>
+          </table>
+          <div class="pageTool">
+            <span>每页{{ size }}条</span>
+            <span>共{{ totalRecord }}条</span>
+            <button @click="myprevPage">上一页</button>
+            <button @click="mynextPage">下一页</button>
+            <input class="pageC" type="text" name="page" v-model="currentPage"><button @click="pageAny">跳转</button>
+          </div>
+        </el-tab-pane>
+
+
+        <el-tab-pane label="全部" name="all">
+          <div class="search" >
+            <el-input placeholder="请输入内容" prefix-icon="el-icon-search" v-model="searchText"></el-input>
+            <button @click="searchTask" >搜索</button>
+          </div>
+          <table>
+            <tr>
+              <th style="width:100px;">ID</th>
+              <th style="width:180px;">创建时间</th>
+              <th style="width:80px;">需求编号</th>
+              <th style="width:330px;">标题</th>
+              <th style="width:100px;" >需求类型</th>
+              <th style="width:100px;" >优先级</th>
+              <th style="width:150px;" >状态</th>
+              <th style="width:100px;" >需求详情</th>
+              <th style="width:300px;" >执行页面</th>
+              <th style="width:300px;" >版本详情</th>
+            </tr>
+            <tr v-for="task in parentTaskList">
+
+              <td>{{task.id}}</td>
+              <td>{{formatDate(task.create_time)}}</td>
+              <td>{{task.seq}}</td>
+              <td><router-link :to="{ name: 'demandDetail' ,query:{demandId:task.id}}" ><div :class="{'hurry':task.priority===1}" >{{task.title}}</div> </router-link> </td>
+              <td>{{task.type}}</td>
+              <td><div :class="{'hurry':task.priority===1}"> {{ mapPriority(task.priority) }}</div></td>
+              <td>{{mapStatus(task.status) }}</td>
+              <td><router-link :to="{ name: 'demandDetail' ,query:{demandId:task.id}}" ><button >需求详情</button></router-link></td>
+              <td>
+                <router-link :to="{ name: 'taskExec',query:{taskId:i.task_id} }"  v-for="i in task.latest_task" ><button style="margin:5px;" >{{i.name}}</button></router-link>
+              </td>
+              <td>
+                <router-link :to="{ name: 'taskDetail' ,query:{parentId:i.demand_id,versionId:i.version_id, task:i.task_id}}" v-for="i in task.diff_task" ><button style="margin:5px;" >{{i.name}}</button></router-link>
+              </td>
+            </tr>
+          </table>
+          <div class="pageTool">
+            <span>每页{{ size }}条</span>
+            <span>共{{ totalRecord }}条</span>
+            <button @click="prevPage">上一页</button>
+            <button @click="nextPage">下一页</button>
+            <input class="pageC" type="text" name="page" v-model="currentPage"><button @click="pageAny">跳转</button>
+          </div>
+        </el-tab-pane>
+
+        <el-tab-pane label="需求队列" name="queue" >
+          <div style="margin-left: 20px; margin-bottom: 15px; " >
+            <el-select v-model="dqtype" >
+              <el-option  label="需求" value="ParentTask"></el-option>
+              <el-option  label="开发任务" value="Task"></el-option>
+            </el-select>
+            <button @click="delmodity" style="margin-left: 70%;" v-if="isStaff===true" >删除优先级修改</button>
+          </div>
+          <!--任务列表可调整顺序-->
+          <div v-if="dqtype === 'Task' && isStaff===true">
+            <div v-for="(item,i) in deve_task"
+                 draggable
+                 @dragstart="handleDragStart($event, item)"
+                 @dragover.prevent="handleDragOver($event, item)"
+                 @dragenter="handleDragEnterT($event, item)"
+                 @dragend="handleDragEndT($event, item)"
+            >
+              <div style="margin: 5px;" >
+                <el-card :class="{'mydemand':userId===item.developer}" >
+                  <div slot="header" style="font-size: 20px;" >{{i+1}}, <router-link :to="{ name: 'demandDetail' ,query:{demandId:item.id}}" >{{item.title}}</router-link> <span v-if="item.level===1" style="color:red;">（特急）</span></div>
+                  <div>
+                    <div class="cardParam"> <label class="cardParamTitle">开发任务id：</label>{{item.id}}</div>
+                    <div class="cardParam"> <label class="cardParamTitle">类型：</label>{{typeMap[item.type]}}</div>
+                    <div class="cardParam"> <label class="cardParamTitle">状态：</label>{{stateMap[item.status]}}</div>
+                    <div class="cardParam"  v-if="item.priority===1" ><label class="cardParamTitle">截止日期：</label>{{item.deadline}}</div>
+                    <div class="cardParam"><label class="cardParamTitle">创建者：</label>{{usermap[item.creater]}}</div>
+                    <div class="cardParam"><label class="cardParamTitle">开发者：</label>{{usermap[item.developer]}}</div>
+                    <div class="cardParam"><label class="cardParamTitle">描述：</label>{{item.desc}}</div>
+                  </div>
+                </el-card>
+              </div>
+            </div>
+          </div>
+
+          <!--任务列表不可调整顺序-->
+          <div v-if="dqtype === 'Task' && isStaff !== true">
+            <div v-for="(item,i) in deve_task">
+              <div style="margin: 5px;" >
+                <el-card :class="{'mydemand':userId===item.developer}" >
+                  <div slot="header" style="font-size: 20px;" >{{i+1}}, <router-link :to="{ name: 'demandDetail' ,query:{demandId:item.id}}" >{{item.title}}</router-link> <span v-if="item.level===1" style="color:red;">（特急）</span></div>
+                  <div>
+                    <div class="cardParam"> <label class="cardParamTitle">开发任务id：</label>{{item.id}}</div>
+                    <div class="cardParam"> <label class="cardParamTitle">类型：</label>{{typeMap[item.type]}}</div>
+                    <div class="cardParam"> <label class="cardParamTitle">状态：</label>{{stateMap[item.status]}}</div>
+                    <div class="cardParam"  v-if="item.priority===1" ><label class="cardParamTitle">截止日期：</label>{{item.deadline}}</div>
+                    <div class="cardParam"><label class="cardParamTitle">创建者：</label>{{usermap[item.creater]}}</div>
+                    <div class="cardParam"><label class="cardParamTitle">开发者：</label>{{usermap[item.developer]}}</div>
+                    <div class="cardParam"><label class="cardParamTitle">描述：</label>{{item.desc}}</div>
+                  </div>
+                </el-card>
+              </div>
+            </div>
+          </div>
+
+          <!--需求列表可调整顺序-->
+          <div v-if="dqtype === 'ParentTask' && isStaff===true">
+            <div v-for="(item,i) in deve_parenttask"
+              draggable
+              @dragstart="handleDragStart($event, item)"
+              @dragover.prevent="handleDragOver($event, item)"
+              @dragenter="handleDragEnterP($event, item)"
+              @dragend="handleDragEndP($event, item)"
+            >
+              <div style="margin: 5px;" >
+                <el-card :class="{'confirmed':item.status==='conformed'}" >
+                  <div  slot="header" style="font-size: 20px;" >{{i+1}},<router-link :to="{ name: 'demandDetail' ,query:{demandId:item.id}}" >{{item.title}}</router-link>  <span v-if="item.priority===1" style="color:red;">（特急）</span> </div>
+                  <div>
+                    <div class="cardParam"> <label class="cardParamTitle">需求id：</label>{{item.seq}}</div>
+                    <div class="cardParam"> <label class="cardParamTitle">状态：</label>{{DemandstateMap[item.status]}}</div>
+                    <div class="cardParam"  v-if="item.priority===1" ><label class="cardParamTitle">截止日期：</label>{{item.deadline}}</div>
+                    <div class="cardParam"><label class="cardParamTitle">创建者：</label>{{usermap[item.create_by]}}</div>
+                    <div class="cardParam"><label class="cardParamTitle">创建时间：</label>{{formatDate(item.create_time)}}</div>
+                    <div class="cardParam"><label class="cardParamTitle">描述：</label>{{item.desc}}</div>
+                  </div>
+                </el-card>
+              </div>
+            </div>
+          </div>
+
+          <!--需求列表不可调整顺序-->
+          <div v-if="dqtype === 'ParentTask' && isStaff!==true">
+            <div v-for="(item,i) in deve_parenttask">
+              <div style="margin: 5px;" >
+                <el-card :class="{'mydemand':userId===item.create_by}" >
+                  <div  slot="header" style="font-size: 20px;" >{{i+1}},<router-link :to="{ name: 'demandDetail' ,query:{demandId:item.id}}" >{{item.title}}</router-link>  <span v-if="item.priority===1" style="color:red;">（特急）</span> </div>
+                  <div>
+                    <div class="cardParam"> <label class="cardParamTitle">需求id：</label>{{item.seq}}</div>
+                    <div class="cardParam"> <label class="cardParamTitle">状态：</label>{{DemandstateMap[item.status]}}</div>
+                    <div class="cardParam"  v-if="item.priority===1" ><label class="cardParamTitle">截止日期：</label>{{item.deadline}}</div>
+                    <div class="cardParam"><label class="cardParamTitle">创建者：</label>{{usermap[item.create_by]}}</div>
+                    <div class="cardParam"><label class="cardParamTitle">创建时间：</label>{{formatDate(item.create_time)}}</div>
+                    <div class="cardParam"><label class="cardParamTitle">描述：</label>{{item.desc}}</div>
+                  </div>
+                </el-card>
+              </div>
+            </div>
+          </div>
+
+        </el-tab-pane>
+
+      </el-tabs>
+
+    </div>
+  </div>
+</template>
+
+<script>
+    import {queryTaskList, queryUser, queryTaskDeve, queryMyTask, getDeveQueue_Task, getDeveQueue_ParentTask, addDeveQueue_Task, addDeveQueue_ParentTask, delDeveQueue} from '../../api/api'
+    import cookie from '../../static/js/cookie';
+    import ElBadge from "element-ui/packages/badge/src/main";
+    export default {
+      components: {ElBadge},
+      name: "taskList",
+        data(){
+          return {
+            userId:"",
+            tabActive:"start",
+            tabStart:"",
+            isStaff:false,
+            MyTaskList:[],
+            parentTaskList: [],
+            parentTaskDoneList:[],
+            TaskInDeve:[],
+            currentMyPage: 1,
+            currentPage: 1,
+            currentDonePage:1,
+            currentDevPage:1,
+            totalMyPage:1,
+            totalPage:1,
+            totalDonePage:1,
+            totalDevePage:1,
+            totalMyRecord:0,
+            totalRecord:0,
+            totalDoneRecord:0,
+            totalDeveRecord:0,
+            Mysize:0,
+            size:0,
+            Donesize:0,
+            Devesize:0,
+            searchText:"",
+            postStatus:"",
+            stateMap:{'confirming':'待确认','ranking':'排队中', 'developing':'开发中', 'finished':'已完成', 'repairing':'BUG修复中'},
+            DemandstateMap:{'conforming':'待确认','wait':'待技术人员评估','conformed':'已确认','developing':'开发中','accepting':'验收中','finished':'已完成','cancel':'已取消'},
+            typeMap:{'file':'文件','module':'页面'},
+            usermap:{},
+            deveStatus:"",
+            deve_task: [],
+            deve_parenttask:[],
+            dqtype:"ParentTask",
+            dragfrom:null,
+            dragto:null,
+            pre_id:""
+          }
+        },
+      created () {
+        this.tabStart = this.$route.query.tabStart;
+        if(typeof(this.tabStart)!=='undefined'){
+          this.tabActive = this.tabStart;
+        }
+        queryUser().then((response) =>{
+          for(var user in response.data) {
+            this.usermap[response.data[user].id] = response.data[user].full_name;
+          }
+        }).catch(function (error) {console.log(error);});
+        queryUser({ params: {username:cookie.getCookie('name')}} ).then((response) =>{
+          this.isStaff = response.data[0].is_staff;
+          this.userId = response.data[0].id;
+          if(this.isStaff===true){
+            queryTaskDeve().then((response) =>{
+              this.TaskInDeve = response.data.results;
+              this.totalDeveRecord = Number(response.data.count);
+              this.Devesize = this.TaskInDeve.length;
+              this.totalDevePage = Math.ceil(this.totalDeveRecord/this.Devesize);
+            }).catch(function (error) {console.log(error);})
+          }
+        }).catch(function (error) {console.log(error);});
+        getDeveQueue_Task().then((response) => {
+          this.deve_task = response.data;
+        }).catch(function (error) {console.log(error);});
+        getDeveQueue_ParentTask().then((response) => {
+          this.deve_parenttask = response.data;
+        }).catch(function (error) {console.log(error);});
+        queryMyTask(1,this.searchText, '', cookie.getCookie('userId')).then((response) => {
+          this.MyTaskList = response.data.results;
+          this.totalMyRecord = Number(response.data.count);
+          this.Mysize = this.parentTaskList.length;
+          this.totalMyPage = Math.ceil(this.totalRecord/this.size);
+          console.log(this.MyTaskList);
+          console.log(cookie.getCookie('userId'));
+        }).catch(function (error) {console.log(error);});
+        queryTaskList(1,this.searchText, this.postStatus).then((response) => {
+          this.parentTaskList = response.data.results;
+          this.totalRecord = Number(response.data.count);
+          this.size = this.parentTaskList.length;
+          this.totalPage = Math.ceil(this.totalRecord/this.size);
+        }).catch(function (error) {console.log(error);});
+        queryTaskList(1,this.searchText, 'finished').then((response) => {
+          this.parentTaskDoneList = response.data.results;
+          this.totalDoneRecord = Number(response.data.count);
+          this.Donesize = this.parentTaskDoneList.length;
+          this.totalDonePage = Math.ceil(this.totalDoneRecord/this.Donesize);
+        }).catch(function (error) {});
+        if(cookie.getCookie('name')==null){
+          this.$router.push({ name:'login'})
+        }
+      },
+      methods:{
+          delmodity(){
+            delDeveQueue(this.dqtype).then((response) => {
+              console.log(response);
+              if(response.data.status === 'success'){
+                this.$message('删除成功!');
+                location.reload();
+              }else{
+                alert('删除失败：'+response.data.msg);
+              }
+            }).catch(function (error) {});
+          },
+          handleDragStart(e, item){
+            this.dragfrom = item;
+          },
+          handleDragEnterP(e, item){
+            e.dataTransfer.effectAllowed = "move";
+            if(item === this.dragfrom){
+              return
+            }
+            else{
+              this.dragto = item;
+            }
+            const newItems = [...this.deve_parenttask];
+            const src = newItems.indexOf(this.dragfrom);
+            const dst = newItems.indexOf(item);
+            if(dst === 0 ){
+              this.pre_id = -1;
+            }
+            else{
+              this.pre_id = this.deve_parenttask[dst-1].id;
+            }
+            newItems.splice(dst, 0, ...newItems.splice(src, 1));
+
+            this.deve_parenttask = newItems
+          },
+        handleDragEnterT(e, item){
+          e.dataTransfer.effectAllowed = "move";
+          if(item === this.dragfrom){
+            return
+          }
+          else{
+            this.dragto = item;
+          }
+          const newItems = [...this.deve_task];
+          const src = newItems.indexOf(this.dragfrom);
+          const dst = newItems.indexOf(item);
+          if(dst === 0 ){
+            this.pre_id = -1;
+          }
+          else{
+            this.pre_id = this.deve_task[dst-1].id;
+          }
+          newItems.splice(dst, 0, ...newItems.splice(src, 1));
+
+          this.deve_task = newItems
+        },
+          handleDragOver(e, item){
+            e.dataTransfer.dropEffect = "move";
+
+          },
+          handleDragEndP(e, item){
+            if(this.dragfrom === this.dragto){
+              this.dragfrom = null;
+              this.dragto = null;
+              return
+            }
+            else{
+              var ind = this.deve_parenttask.indexOf(this.dragto);
+              if(ind === -1){
+                return
+              }
+
+              var params = {'model_name':'ParentTask','this_item':this.dragfrom.id,'pre_item':this.pre_id};
+              console.log(params);
+              addDeveQueue_ParentTask(params).then((response) => {
+                console.log(response);
+                if(response.data.status === 'success'){
+                  this.$message('更新成功!');
+                }else{
+                  alert('更新失败：'+response.data.msg);
+                }
+              }).catch(function (error) {});
+              this.dragfrom = null;
+              this.dragto = null;
+            }
+          },
+        handleDragEndT(e, item){
+          if(this.dragfrom === this.dragto){
+            this.dragfrom = null;
+            this.dragto = null;
+            return
+          }
+          else{
+            var ind = this.deve_task.indexOf(this.dragto);
+            if(ind === -1){
+              return
+            }
+
+            var params = {'model_name':'Task','this_item':this.dragfrom.id,'pre_item':this.pre_id};
+            console.log(params);
+            addDeveQueue_Task(params).then((response) => {
+              console.log(response);
+              if(response.data.status === 'success'){
+                this.$message('更新成功!');
+              }else{
+                alert('更新失败：'+response.data.msg);
+              }
+            }).catch(function (error) {});
+            this.dragfrom = null;
+            this.dragto = null;
+          }
+        },
+          formatDate(date){
+            if(date === null){
+              return ""
+            }
+            let d = new Date(date);
+            if(String(d.getMinutes()).length==2) {
+              return d.toLocaleDateString() + " " + d.getHours() + ":" + d.getMinutes()
+            }else{
+              return d.toLocaleDateString() + " " + d.getHours() + ":" + "0"+d.getMinutes()
+            }
+          },
+        handletabchange(tab, event){
+          if(tab.label==='已完成'){
+            this.postStatus = 'finished';
+          }
+          else if(tab.label==='全部'){
+            this.postStatus = '';
+          }
+          else if(tab.label==='未完成'){
+            this.postStatus = 'unfinished';
+          }
+          else if(tab.label==='开发任务'){
+            this.postStatus = 'develop';
+          }
+        },
+        mapPriority(priority){
+          if(priority===1 || priority==='1'){
+            return '特急'
+          }
+          else if(priority===2 || priority==='2'){
+            return '一般'
+          }
+        },
+        mapStatus(status){
+          if(status==='wait'){
+            return '待技术人员评估'
+          }
+          else if(status==='conforming'){
+            return '待业务人员确认'
+          }
+          else if(status==='conformed'){
+            return '已确认'
+          }
+          else if(status==='developing'){
+            return '开发中'
+          }
+          else if(status==='accepting'){
+            return '验收中'
+          }
+          else if(status==='finished'){
+            return '已完成'
+          }
+          else if(status==='cancel'){
+            return '已取消'
+          }
+        },
+        mynextPage(){
+          if (this.currentMyPage < this.totalMyPage) {
+            this.currentMyPage = Number(this.currentMyPage);
+            this.currentMyPage += 1;
+            queryMyTask(this.currentMyPage, this.searchText, '',this.userId).then((response) => {
+              this.MyTaskList = response.data.results
+            }).catch(function (error) {
+              console.log(error);
+            })
+          }
+        },
+        nextPage(){
+          if(this.postStatus==='') {
+            if (this.currentPage < this.totalPage) {
+              this.currentPage = Number(this.currentPage);
+              this.currentPage += 1;
+              queryTaskList(this.currentPage, this.searchText, this.postStatus).then((response) => {
+                this.parentTaskList = response.data.results
+              }).catch(function (error) {
+                console.log(error);
+              })
+            }
+          }
+          else if(this.postStatus==='finished'){
+            if (this.currentDonePage < this.totalDonePage) {
+              this.currentDonePage = Number(this.currentDonePage);
+              this.currentDonePage += 1;
+              queryTaskList(this.currentDonePage, this.searchText, this.postStatus).then((response) => {
+                this.parentTaskDoneList = response.data.results
+              }).catch(function (error) {
+                console.log(error);
+              })
+            }
+          }
+          else if(this.postStatus==='develop'){
+            if (this.currentDevPage < this.totalDevePage) {
+              this.currentDevPage = Number(this.currentDevPage);
+              this.currentDevPage += 1;
+              queryTaskList(this.currentDevPage, this.searchText, this.postStatus).then((response) => {
+                this.TaskInDeve = response.data.results
+              }).catch(function (error) {
+                console.log(error);
+              })
+            }
+          }
+        },
+        myprevPage(){
+          if (this.currentMyPage > 1) {
+            this.currentMyPage = Number(this.currentMyPage);
+            this.currentMyPage -= 1;
+            queryMyTask(this.currentMyPage, this.searchText, '',this.userId).then((response) => {
+              this.MyTaskList = response.data.results
+            }).catch(function (error) {
+              console.log(error);
+            })
+          }
+        },
+        prevPage(){
+          if(this.postStatus==='') {
+            if (this.currentPage > 1) {
+              this.currentPage = Number(this.currentPage);
+              this.currentPage -= 1;
+              queryTaskList(this.currentPage, this.searchText, this.postStatus).then((response) => {
+                this.parentTaskList = response.data.results
+              }).catch(function (error) {
+                console.log(error);
+              })
+            }
+          }
+          else if(this.postStatus==='finished'){
+            if (this.currentDonePage > 1) {
+              this.currentDonePage = Number(this.currentDonePage);
+              this.currentDonePage -= 1;
+              queryTaskList(this.currentDonePage, this.searchText, this.postStatus).then((response) => {
+                this.parentTaskDoneList = response.data.results
+              }).catch(function (error) {
+                console.log(error);
+              })
+            }
+          }
+          else if(this.postStatus==='develop'){
+            if (this.currentDevPage > 1) {
+              this.currentDevPage = Number(this.currentDevPage);
+              this.currentDevPage -= 1;
+              queryTaskList(this.currentDevPage, this.searchText, this.postStatus).then((response) => {
+                this.TaskInDeve = response.data.results
+              }).catch(function (error) {
+                console.log(error);
+              })
+            }
+          }
+        },
+        MypageAny(){
+          this.currentMyPage = Number(this.currentMyPage);
+          if (this.currentMyPage < 1) {
+            this.currentMyPage = 1
+          }
+          if (this.currentMyPage > this.totalMyPage) {
+            this.currentMyPage = this.totalMyPage
+          }
+          if (this.currentMyPage >= 1 && this.currentMyPage <= this.totalMyPage) {
+            queryMyTask(this.currentMyPage, this.searchText, '',this.userId).then((response) => {
+              this.MyTaskList = response.data.results
+            }).catch(function (error) {
+              console.log(error);
+            })
+          }
+        },
+        pageAny(){
+          if(this.postStatus==='') {
+            this.currentPage = Number(this.currentPage);
+            if (this.currentPage < 1) {
+              this.currentPage = 1
+            }
+            if (this.currentPage > this.totalPage) {
+              this.currentPage = this.totalPage
+            }
+            if (this.currentPage >= 1 && this.currentPage <= this.totalPage) {
+              queryTaskList(this.currentPage, this.searchText, this.postStatus).then((response) => {
+                this.parentTaskList = response.data.results
+              }).catch(function (error) {
+                console.log(error);
+              })
+            }
+          }
+          else if(this.postStatus==='finished'){
+            this.currentDonePage = Number(this.currentDonePage);
+            if (this.currentDonePage < 1) {
+              this.currentDonePage = 1
+            }
+            if (this.currentDonePage > this.totalDonePage) {
+              this.currentDonePage = this.totalDonePage
+            }
+            if (this.currentDonePage >= 1 && this.currentDonePage <= this.totalDonePage) {
+              queryTaskList(this.currentDonePage, this.searchText, this.postStatus).then((response) => {
+                this.parentTaskDoneList = response.data.results
+              }).catch(function (error) {console.log(error);})
+            }
+          }
+        },
+        MysearchTask() {
+          queryMyTask(1, this.searchText, '',this.userId).then((response) => {
+            this.MyTaskList = response.data.results;
+            this.totalMyRecord = Number(response.data.count);
+            this.Mysize = this.MyTaskList.length;
+            this.totalMyPage = Math.ceil(this.totalMyRecord / this.Mysize);
+          }).catch(function (error) { console.log(error);});
+        },
+        searchTask() {
+          if (this.postStatus === '') {
+            queryTaskList(1, this.searchText, this.postStatus).then((response) => {
+              this.parentTaskList = response.data.results;
+              this.totalRecord = Number(response.data.count);
+              this.size = this.parentTaskList.length;
+              this.totalPage = Math.ceil(this.totalRecord / this.size);
+            }).catch(function (error) { console.log(error);});
+          }
+          else if(this.postStatus==='finished'){
+            queryTaskList(1, this.searchText, this.postStatus).then((response) => {
+              this.parentTaskDoneList = response.data.results;
+              this.totalDoneRecord = Number(response.data.count);
+              this.Donesize = this.parentTaskDoneList.length;
+              this.totalDonePage = Math.ceil(this.totalDoneRecord / this.Donesize);
+            }).catch(function (error) { console.log(error);})
+          }
+          else if(this.postStatus==='develop'){
+                queryTaskDeve({params:{page:1,search:this.searchText, status:this.deveStatus}}).then((response) =>{
+                  this.TaskInDeve = response.data.results;
+                  this.totalDeveRecord = Number(response.data.count);
+                  this.Devesize = this.TaskInDeve.length;
+                  this.totalDevePage = Math.ceil(this.totalDeveRecord/this.Devesize);
+                }).catch(function (error) {console.log(error);})
+          }
+        }
+      }
+    }
+</script>
+
+<style>
+  .pageTool{
+    margin-top: 10px;
+    padding-left: 42%;
+
+  }
+  .pagePN{
+    border-radius: 2px 0 0 2px;
+    margin-left: 0 !important;
+    text-decoration: none;
+    display: inline-block;
+    vertical-align: middle;
+    padding: 0 15px;
+    height: 28px;
+    line-height: 28px;
+    margin: 0 -1px 5px 0;
+    background-color: #fff;
+    color: #333;
+    font-size: 12px;
+    border: 1px solid #e2e2e2;
+    box-sizing: content-box;
+  }
+  .pageC{
+    width:15px;
+    height:22px;
+    margin-right: 10px;
+  }
+  .search{
+    margin-bottom: 15px;
+    margin-left: 64%;
+  }
+  .el-input{
+    width:200px !important;
+  }
+  .el-input__inner{
+    height:30px !important;
+  }
+  .el-input__icon{
+    line-height:30px !important;
+  }
+  .taskcard{
+    border: 1px solid #EBEEF5;
+    background-color: #FFF;
+    color: #303133;
+    -webkit-transition: .3s;
+    transition: .3s;
+    box-shadow: 0 2px 12px 0 rgba(0,0,0,.1);
+  }
+  .cardParam{
+    height:25px;
+  }
+  .cardParamTitle{
+    width: 200px;
+    display: block;
+    padding: 4px 10px 0 0;
+    float: left;
+    font-weight: 700;
+  }
+  .mydemand{
+    background-color: #fdff87;
+  }
+  .hurry{
+    color:red;
+  }
+  .confirmed{
+    background-color: #6eff60;
+  }
+</style>
