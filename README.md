@@ -38,3 +38,7 @@ Build
 npm run build:prod
 ```
 
+
+User Guide
+==========
+[user guide](/docs/user_guide.md) 
