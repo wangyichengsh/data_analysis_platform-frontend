@@ -14,7 +14,7 @@ export const DemandstateMap = {'conforming':'conforming',
   'wait':'waiting',
   'conformed':'conformed',
   'developing':'developing',
-  'accepting':'admission',
+  'accepting':'accepting',
   'finished':'finished',
   'cancel':'cancelled',
   'check':'checking',
@@ -28,7 +28,7 @@ export const demandStatus =[
   {'key':'conforming','value':'conforming'},
   {'key':'conformed','value':'conformed'},
   {'key':'developing','value':'developing'},
-  {'key':'accepting','value':'admission'},
+  {'key':'accepting','value':'accepting'},
   {'key':'finished','value':'finished'},
   {'key':'cancel','value':'cancelled'}
 ];

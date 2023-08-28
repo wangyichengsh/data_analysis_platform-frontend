@@ -17,7 +17,7 @@
         <el-step title="confirming"></el-step>
         <el-step title="confirmed"></el-step>
         <el-step title="developing"></el-step>
-        <el-step title="checking"></el-step>
+        <el-step title="accepting"></el-step>
         <el-step
           title="finished"
           v-if="status!=='cancel'"
