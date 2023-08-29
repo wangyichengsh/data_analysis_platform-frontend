@@ -136,7 +136,7 @@ For Field
 |table|the sheet it come from|
 |name|the first row of this sheet|
 |description|the second row of this sheet|
-|replace original field|the third row of this sheet(future) |
+|replace original field|the third row of this sheet|
 
 
 ### Configure Code
